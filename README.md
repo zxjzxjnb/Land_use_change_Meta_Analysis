@@ -1,16 +1,18 @@
 # metaextract
 
-LLM-assisted data extraction for ecological meta-analysis.
+**Status: In Progress**
 
-`metaextract` turns research-paper PDFs into a structured, analysis-ready table
-for land-use-change soil meta-analysis. It focuses on the slowest part of the
-workflow: extracting treatment/control means, standard deviations, sample sizes,
-and study-level moderators from tables, figures, and text.
+LLM-assisted data extraction prototype for ecological meta-analysis.
 
-The project is designed as a human-in-the-loop extraction pipeline rather than a
-one-shot demo. It uses native PDF understanding, a typed output schema, sanity
-checks, cached batch processing, and an evaluation script for comparing model
-outputs against hand-extracted ground truth.
+`metaextract` is an early-stage Python package for testing whether research-paper
+PDFs can be converted into structured rows for land-use-change soil
+meta-analysis. The current implementation focuses on a human-in-the-loop
+workflow: model-assisted extraction, typed outputs, basic sanity checks, cached
+batch runs, and evaluation scaffolding against hand-extracted ground truth.
+
+The repository is not presented as a finished extraction system. The core code
+and deterministic tests are in place, but benchmark evaluation on a manually
+curated paper set is still in progress.
 
 ## Why This Project Exists
 
@@ -19,10 +21,10 @@ researcher reads each paper, finds treatment and control groups, records
 `mean`, `SD`, and `n`, and repeats the same process across hundreds of studies.
 That work is slow, error-prone, and difficult to audit.
 
-This project asks a narrower and more useful question:
+This project asks a narrower implementation question:
 
-> Can an LLM-assisted pipeline extract most of the structured data, flag risky
-> rows for human review, and measure its own agreement with manual extraction?
+> Can an LLM-assisted workflow help draft structured extraction rows, flag rows
+> that need review, and measure agreement with manual extraction?
 
 ## Core Workflow
 
@@ -48,9 +50,9 @@ Tidy CSV
 Evaluation against hand-extracted ground truth
 ```
 
-## What It Extracts
+## Target Extraction Fields
 
-For each paper, the pipeline extracts:
+The schema is designed to represent:
 
 - Study metadata, including first author and publication year
 - Location, climate, and soil background moderators
@@ -61,8 +63,8 @@ For each paper, the pipeline extracts:
 - Source provenance, such as table, figure, sampling depth, and measurement year
 - QA flags for rows that need manual review
 
-The output is denormalized into a single CSV so it can be used directly in an
-effect-size workflow.
+The current output format is a denormalized CSV intended for downstream
+effect-size workflows after human review.
 
 ## Architecture
 
@@ -81,10 +83,10 @@ src/metaextract/
 
 ### Extraction
 
-`extractor.py` sends the full PDF bytes to Gemini as a document input. This
-preserves table and figure context better than flattening pages into plain text.
-The model is instructed to return JSON that follows the Pydantic schema defined
-in `schema.py`.
+`extractor.py` sends the full PDF bytes to Gemini as a document input and asks
+for JSON that follows the Pydantic schema defined in `schema.py`. This is meant
+to preserve more table and figure context than a plain-text-only extraction path,
+though extraction quality still needs to be measured paper by paper.
 
 ### Schema
 
@@ -104,7 +106,7 @@ for returned JSON.
 
 ### Validation
 
-`validator.py` adds a trust layer after extraction. It flags issues such as:
+`validator.py` adds basic post-extraction checks. It flags issues such as:
 
 - Missing treatment or control means
 - Negative standard deviations
@@ -114,7 +116,7 @@ for returned JSON.
 - Suspiciously high coefficient of variation
 
 Rows are not silently dropped. They are emitted with `qa_flags` so a human
-reviewer can focus on the most risky records.
+reviewer can prioritize records that look risky.
 
 ### Flattening
 
@@ -135,15 +137,15 @@ repeated across rows.
 ### Evaluation
 
 `evaluate.py` compares predicted CSV rows against a manually extracted
-ground-truth CSV. It reports:
+ground-truth CSV. It is intended to report:
 
 - Row recall
 - Row precision
 - Numeric field recovery within a relative tolerance
 - Per-field mean absolute error
 
-This is the key step that turns the project from an LLM demo into a measurable
-extraction system.
+This evaluation step is the main unfinished piece before making any accuracy
+claims about the extraction workflow.
 
 ## Installation
 
@@ -232,10 +234,11 @@ Recommended reporting:
 
 ## Current Status
 
-The repository contains the extraction pipeline, schema, validation layer,
-flattening logic, batch runner, CLI, and deterministic unit tests. The next most
-important milestone is to run the system on a manually extracted ground-truth
-set and publish the evaluation metrics.
+**In Progress.** The repository currently contains the extraction pipeline,
+schema, validation layer, flattening logic, batch runner, CLI, documentation,
+and deterministic unit tests. The next milestone is to run the workflow on a
+manually extracted ground-truth set, review errors, and report measured
+performance instead of estimated accuracy.
 
 ## Development
 
