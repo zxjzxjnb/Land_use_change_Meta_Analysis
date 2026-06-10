@@ -1,5 +1,7 @@
 # LLM-assisted data extraction tool for Meta analysis
 
+[![CI](https://github.com/zxjzxjnb/LLM-assisted-data-extraction-tool-for-Meta-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/zxjzxjnb/LLM-assisted-data-extraction-tool-for-Meta-analysis/actions/workflows/ci.yml)
+
 **Status: In Progress**
 
 LLM-assisted data extraction tool for Meta analysis.
