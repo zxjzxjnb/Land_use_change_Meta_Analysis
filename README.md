@@ -1,8 +1,8 @@
-# metaextract
+# LLM-assisted data extraction tool for Meta analysis
 
 **Status: In Progress**
 
-LLM-assisted data extraction prototype for ecological meta-analysis.
+LLM-assisted data extraction tool for Meta analysis.
 
 `metaextract` is an early-stage Python package for testing whether research-paper
 PDFs can be converted into structured rows for land-use-change soil

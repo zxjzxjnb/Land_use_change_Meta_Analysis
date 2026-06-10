@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "metaextract"
 version = "0.1.0"
-description = "LLM-assisted data extraction for ecological meta-analysis"
+description = "LLM-assisted data extraction tool for Meta analysis"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
