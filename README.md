@@ -4,73 +4,50 @@
 
 **Status: In Progress**
 
-LLM-assisted data extraction tool for Meta analysis.
+`metaextract` is a research prototype for testing whether AI-assisted workflows
+can reduce the manual transcription burden in soil and land-use-change
+meta-analysis. The project started as a one-shot PDF-to-CSV extractor, then
+shifted toward a more conservative human-in-the-loop verification workflow:
+AI helps screen papers, locate relevant evidence, and draft structured outputs;
+humans confirm the values that would enter a meta-analysis.
 
-`metaextract` is an early-stage Python package for testing whether research-paper
-PDFs can be converted into structured rows for land-use-change soil
-meta-analysis. The current implementation focuses on a human-in-the-loop
-workflow: model-assisted extraction, typed outputs, basic sanity checks, cached
-batch runs, and evaluation scaffolding against hand-extracted ground truth.
-
-The repository is not presented as a finished extraction system. The core code
-and deterministic tests are in place, but benchmark evaluation on a manually
-curated paper set is still in progress.
+This repository is not presented as a finished automatic extraction system. The
+current codebase contains a working Python package, deterministic validation and
+geometry tests, cached paper-level experiments, and a local verification cockpit
+prototype. Larger-scale accuracy claims are still being evaluated.
 
 ## Why This Project Exists
 
-Meta-analysis usually depends on a large amount of manual transcription. A
-researcher reads each paper, finds treatment and control groups, records
-`mean`, `SD`, and `n`, and repeats the same process across hundreds of studies.
-That work is slow, error-prone, and difficult to audit.
+Meta-analysis depends on careful manual extraction of treatment-control values:
+means, standard deviations, sample sizes, experimental context, and source
+provenance. Those values are often buried in tables, figure panels, captions, or
+methods sections, and a silent transcription error can directly affect the
+computed effect size.
 
-This project asks a narrower implementation question:
+This project asks a narrower engineering question:
 
-> Can an LLM-assisted workflow help draft structured extraction rows, flag rows
-> that need review, and measure agreement with manual extraction?
+> Can AI make the extraction workflow faster while keeping every value auditable
+> against the source paper?
 
-## Core Workflow
+The current design therefore prioritizes evidence, review, and measurement over
+full automation.
 
-```text
-PDF folder
-   |
-   v
-Gemini native PDF understanding
-   |
-   v
-Pydantic structured output schema
-   |
-   v
-ExtractionResult objects
-   |
-   v
-Validation and QA flags
-   |
-   v
-Tidy CSV
-   |
-   v
-Evaluation against hand-extracted ground truth
-```
+## Current Implementation
 
-## Target Extraction Fields
+The repository has two related layers.
 
-The schema is designed to represent:
+### 1. Package and CLI baseline
 
-- Study metadata, including first author and publication year
-- Location, climate, and soil background moderators
-- Experimental design information
-- One row per paired treatment-control response variable
-- Treatment mean, SD, and sample size
-- Control mean, SD, and sample size
-- Source provenance, such as table, figure, sampling depth, and measurement year
-- QA flags for rows that need manual review
+The original `metaextract` package supports:
 
-The current output format is a denormalized CSV intended for downstream
-effect-size workflows after human review.
+- Gemini PDF input with Pydantic structured output
+- typed extraction models for study metadata and treatment-control rows
+- validation rules that emit `qa_flags` instead of silently dropping rows
+- flattening into a tidy CSV format
+- batch processing with optional JSON caching
+- an evaluator for comparing predicted rows with hand-extracted ground truth
 
-## Architecture
-
-The package is organized around small, testable modules:
+Key modules:
 
 ```text
 src/metaextract/
@@ -83,71 +60,59 @@ src/metaextract/
   evaluate.py     Comparison against hand-extracted ground truth
 ```
 
-### Extraction
+### 2. Verification cockpit prototype
 
-`extractor.py` sends the full PDF bytes to Gemini as a document input and asks
-for JSON that follows the Pydantic schema defined in `schema.py`. This is meant
-to preserve more table and figure context than a plain-text-only extraction path,
-though extraction quality still needs to be measured paper by paper.
+The newer direction is a local-first verification cockpit. Instead of trusting
+the model to silently transcribe every number, the workflow emphasizes:
 
-### Schema
+- deterministic PDF ingest with page, block, and word-level bounding boxes
+- AI-assisted screening and location of relevant table or figure regions
+- click-to-evidence review, where selected regions are rendered next to the PDF
+- human-filled or human-confirmed values with source provenance
+- geometry-assisted table parsing for simple table layouts
+- deterministic sample-size candidate detection for common `n` statements
+- cached paper runs for repeatable offline review
 
-`schema.py` defines the typed contract for the extraction result:
+Related files:
 
-- `StudyInfo`
-- `Moderators`
-- `Location`
-- `Climate`
-- `SoilBackground`
-- `ExperimentalDesign`
-- `ResponseVariable`
-- `ExtractionResult`
+```text
+app/cockpit.py                 Streamlit verification cockpit
+src/metaextract/ingest.py       PDF -> SourceDoc with geometry
+src/metaextract/sourcedoc.py    addressable source-document model
+src/metaextract/highlight.py    value-to-bounding-box matching
+src/metaextract/locate.py       AI-assisted screen + locate stage
+src/metaextract/records.py      located-region and extraction-slot models
+src/metaextract/tabular.py      geometry-assisted table pairing
+src/metaextract/sampling.py     deterministic sample-size candidates
+src/metaextract/render.py       PDF page rendering with highlights
+```
 
-The schema is used both as the model response format and as the validation layer
-for returned JSON.
+## Evaluation Status
 
-### Validation
+Evaluation is ongoing and should be read conservatively.
 
-`validator.py` adds basic post-extraction checks. It flags issues such as:
+- Deterministic unit tests cover validation, location resolution, highlighting,
+  sampling candidates, and table-geometry helpers.
+- Cached P1-P12 paper experiments are included for development and analysis.
+- One clean table paper has been used as a smoke test for geometry-assisted
+  pairing against hand extraction.
+- Corpus-level location and value checks exist in `scripts/benchmark.py`,
+  `scripts/bench_values.py`, and `scripts/eval_against_gt.py`.
+- The current evidence supports the human-in-the-loop direction, not a claim
+  that the system can fully automate extraction across all paper formats.
 
-- Missing treatment or control means
-- Negative standard deviations
-- Non-positive or non-integer sample sizes
-- Implausible pH, temperature, or precipitation values
-- Treatment and control groups that are identical
-- Suspiciously high coefficient of variation
+The main open problem is generalization across diverse table and figure formats.
+Simple normal tables can benefit from geometry-assisted pairing; transposed,
+nested, or figure-heavy papers still require manual confirmation or digitization.
 
-Rows are not silently dropped. They are emitted with `qa_flags` so a human
-reviewer can prioritize records that look risky.
+## Documentation Status
 
-### Flattening
-
-`flatten.py` converts nested extraction results into a tidy long-format table:
-one row per paired treatment-control data point, with study-level moderators
-repeated across rows.
-
-### Batch Pipeline
-
-`pipeline.py` processes every PDF in an input folder. It supports:
-
-- Per-paper failure isolation
-- Simple retry logic
-- Optional JSON caching
-- A combined output CSV
-- A `run_summary.json` file with success, failure, row, and QA counts
-
-### Evaluation
-
-`evaluate.py` compares predicted CSV rows against a manually extracted
-ground-truth CSV. It is intended to report:
-
-- Row recall
-- Row precision
-- Numeric field recovery within a relative tolerance
-- Per-field mean absolute error
-
-This evaluation step is the main unfinished piece before making any accuracy
-claims about the extraction workflow.
+| Document | Status | How to read it |
+| --- | --- | --- |
+| [README.md](README.md) | Current public overview | Best entry point for the repository's present scope and limitations |
+| [docs/writeup.md](docs/writeup.md) | Draft project writeup | Explains the motivation and design, but the results section still contains TBD placeholders |
+| [docs/ARCHITECTURE_v2.md](docs/ARCHITECTURE_v2.md) | Design proposal | A schema-driven next-version architecture; not a statement of fully shipped code |
+| [docs/ARCHITECTURE_v3.md](docs/ARCHITECTURE_v3.md) | Active cockpit blueprint | Most closely matches the current product direction and implemented prototype modules |
 
 ## Installation
 
@@ -155,7 +120,13 @@ claims about the extraction workflow.
 pip install -e .
 ```
 
-Create a `.env` file or export the required environment variables:
+For development, install optional dependencies:
+
+```bash
+pip install -e ".[dev]"
+```
+
+Create a `.env` file or export the required environment variable for Gemini:
 
 ```bash
 export GOOGLE_API_KEY="your-api-key"
@@ -171,7 +142,7 @@ export GOOGLE_CLOUD_LOCATION="us-central1"
 
 ## Usage
 
-Run extraction over a folder of PDFs:
+Run the baseline extractor over a folder of PDFs:
 
 ```bash
 metaextract run \
@@ -190,93 +161,82 @@ metaextract eval \
   --report data/outputs/evaluation_report.json
 ```
 
-Use the package from Python:
-
-```python
-from metaextract import extract_from_pdf
-
-result = extract_from_pdf("paper.pdf")
-for row in result.response_variables:
-    print(row.variable_name, row.mean_t, row.mean_c)
-```
-
-## Ground-Truth Evaluation Plan
-
-A rigorous evaluation should use a manually extracted `truth.csv` with the same
-row structure as the model output. Recommended columns include:
-
-```text
-source_file
-first_author
-year
-site_name
-sampling_depth_cm
-measurement_year
-variable_name
-treatment_group
-control_group
-mean_t
-sd_t
-n_t
-mean_c
-sd_c
-n_c
-source
-```
-
-Recommended reporting:
-
-- Row recall and precision for paired data-point discovery
-- Per-field recovery for `mean_t`, `sd_t`, `n_t`, `mean_c`, `sd_c`, and `n_c`
-- Exact-match accuracy for sample sizes
-- Relative-error tolerance for continuous numeric values
-- Error analysis by source type, especially table-sourced vs figure-sourced data
-- QA-flag recall and precision, to measure whether validation catches risky rows
-- Runtime and human review time per paper
-
-## Current Status
-
-**In Progress.** The repository currently contains the extraction pipeline,
-schema, validation layer, flattening logic, batch runner, CLI, documentation,
-and deterministic unit tests. The next milestone is to run the workflow on a
-manually extracted ground-truth set, review errors, and report measured
-performance instead of estimated accuracy.
-
-## Development
-
-Install development dependencies:
+Launch the local cockpit prototype after installing development dependencies:
 
 ```bash
-pip install -e ".[dev]"
+streamlit run app/cockpit.py
 ```
 
-Run tests:
+The cockpit reads cached paper artifacts from `data/cache/`. To refresh a cached
+study from `data/sample_papers/{study}.pdf`, use:
+
+```bash
+python scripts/prepare_paper.py P1
+```
+
+## Benchmark and Development Commands
+
+Run deterministic tests:
 
 ```bash
 pytest
 ```
 
-The current tests cover deterministic validation and flattening logic without
-calling the Gemini API.
+Run location-oriented corpus checks over cached papers:
 
-## Limitations
+```bash
+python scripts/benchmark.py
+```
 
-- Figure-only values are harder to recover reliably than table values.
-- The pipeline supports human review; it should not be treated as a fully
-  automatic replacement for expert extraction.
-- Accuracy claims depend on the ground-truth set and matching strategy.
-- Costs and runtime depend on PDF length, paper count, model choice, and cache
-  usage.
+Run value-recall checks for table-like cached papers:
+
+```bash
+python scripts/bench_values.py
+```
+
+Run the one-paper ground-truth comparison script:
+
+```bash
+python scripts/eval_against_gt.py
+```
+
+These scripts are evaluation scaffolding, not a final benchmark suite. Their
+results should be interpreted together with the cache coverage, paper type mix,
+and known anomalies described in the architecture notes.
+
+## Target Extraction Fields
+
+The baseline schema and cockpit export logic are designed around:
+
+- study metadata, including first author and publication year
+- location, climate, and soil background moderators
+- experimental design information
+- paired treatment-control response variables
+- treatment mean, SD, and sample size
+- control mean, SD, and sample size
+- source provenance such as table, figure, page, block, or evidence span
+- QA flags or review status for risky rows
+
+The intended downstream output is a reviewed, meta-analysis-ready table rather
+than raw unverified model output.
 
 ## Roadmap
 
-- Add a stronger one-to-one row matching strategy in evaluation
-- Publish metrics on a manually extracted benchmark set
-- Add tests for evaluation and batch pipeline behavior
-- Flag figure-sourced rows explicitly for review
-- Add confidence or disagreement-based checks
-- Build a review UI that shows flagged rows next to their source tables or
-  figures
+- tighten the cockpit export path for reviewed records
+- separate paper-level moderators from record-level values until a human binds
+  them
+- add more explicit review logs and provenance reports
+- improve support for figure digitization handoff
+- expand evaluation beyond smoke tests into a larger curated ground-truth set
+- report measured location recall, value recovery, correction rate, and review
+  time per verified record
+
+## Project Boundary
+
+This project is a practical extraction and verification tool, not a full
+meta-analysis platform. It does not replace effect-size modeling, statistical
+synthesis, or expert review. Its goal is to make the evidence-gathering stage
+faster, more inspectable, and easier to audit.
 
 ## License
 
