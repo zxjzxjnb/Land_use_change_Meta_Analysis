@@ -1,9 +1,10 @@
 """metaextract: LLM-assisted data extraction for ecological meta-analysis."""
 
 from .extractor import extract_from_pdf
+from .families import FAMILIES, AnalysisFamily, RecordField, get_family
 from .highlight import Match, locate_value
 from .ingest import ingest_pdf
-from .locate import SOIL_AGRI_SPEC, LocateOutput, TaskSpec, locate
+from .locate import SOIL_AGRI_SPEC, LocateOutput, TargetVar, TaskSpec, locate
 from .pipeline import run_folder
 from .records import Citation, LocatedRegion, ScreeningResult
 from .schema import ExtractionResult
@@ -29,7 +30,13 @@ __all__ = [
     "locate",
     "LocateOutput",
     "TaskSpec",
+    "TargetVar",
     "SOIL_AGRI_SPEC",
+    # analysis families (per-record field set)
+    "AnalysisFamily",
+    "RecordField",
+    "get_family",
+    "FAMILIES",
     "LocatedRegion",
     "ScreeningResult",
     "Citation",

@@ -1,0 +1,155 @@
+# Task pack — the single place a researcher edits to change target metrics.
+#
+# Each target_variables entry:
+#   name:       canonical metric name (used for export columns + cross-paper match)
+#   aliases:    synonyms papers actually use; the locator normalizes them to `name`
+#   unit_hint:  optional, helps the locator disambiguate (free text)
+#   label:      optional human label for the cockpit
+#
+# Add a metric -> add an entry, then re-run scripts/prepare_paper.py for the paper.
+# Remove a metric -> delete its entry (no re-run needed; it just stops showing).
+
+domain: soil_C_fractions_landuse
+target_variables:
+- name: Clay
+  aliases: []
+- name: Silt
+  aliases: []
+- name: Sand
+  aliases: []
+- name: BD
+  aliases: []
+- name: pH
+  aliases: []
+- name: Soil Moisture content
+  aliases: []
+- name: NH4-N mg⋅kg−1
+  aliases: []
+- name: NO3-N mg⋅kg−1
+  aliases: []
+- name: TP mg⋅kg−1
+  aliases: []
+- name: AvailP mg⋅kg−1
+  aliases: []
+- name: SOC g⋅kg−1
+  aliases: []
+- name: TN g⋅kg−1
+  aliases: []
+- name: SON g⋅kg−1
+  aliases: []
+- name: C fraction 1 LCI g⋅kg−1
+  aliases: []
+- name: C fraction 2 LCII g⋅kg−1
+  aliases: []
+- name: C fraction 3 Recalcitrant carbon pool (RC) g⋅kg–1
+  aliases: []
+- name: LSOC
+  aliases: []
+- name: LSON
+  aliases: []
+- name: RSON
+  aliases: []
+- name: C/N
+  aliases: []
+- name: C/N_POC
+  aliases: []
+- name: C/N_MAOC
+  aliases: []
+- name: C fraction 4 DOC OR WSOC
+  aliases: []
+- name: DON mg⋅kg−1
+  aliases: []
+- name: DOC/DON
+  aliases: []
+- name: C fraction 5 MBC mg⋅kg−1
+  aliases: []
+- name: MBN mg⋅kg−1
+  aliases: []
+- name: BG nmol⋅g−1⋅h−1
+  aliases: []
+- name: BX nmol⋅g−1⋅h−1
+  aliases: []
+- name: CBH nmol⋅g−1⋅h−1
+  aliases: []
+- name: NAG nmol⋅g−1⋅h−1
+  aliases: []
+- name: Acid phosphtase nmol⋅g−1⋅h−1
+  aliases: []
+- name: LAP nmol⋅g−1⋅h−1
+  aliases: []
+- name: PER peroxidase nmol⋅g−1⋅h−1
+  aliases: []
+- name: POX phenol oxidase nmol⋅g−1⋅h−1
+  aliases: []
+- name: cbhI gene abundance 10^6 copies g-1 dry soil
+  aliases: []
+- name: lcc gene abundance 10^7 copies g-1 dry soil
+  aliases: []
+- name: C fraction 6 POC mg⋅kg−1
+  aliases: []
+- name: POC_N mg⋅kg−1
+  aliases: []
+- name: C fraction 7 MAOC mg⋅kg−1
+  aliases: []
+- name: MAOC-N mg⋅kg−1
+  aliases: []
+- name: Light fraction C mg⋅kg−1
+  aliases: []
+- name: Light fraction N mg⋅kg−1
+  aliases: []
+- name: C fraction 8 EOC\POXC\LOC\AC\ROC mg⋅kg−1
+  aliases: []
+- name: Li-C liability
+  aliases: []
+- name: TAS_Microbial necromas C
+  aliases: []
+- name: GlcN
+  aliases: []
+- name: GaIN
+  aliases: []
+- name: MurN
+  aliases: []
+- name: C fraction 8 Microbial derived C
+  aliases: []
+- name: Plant derived C
+  aliases: []
+- name: C fraction 9 fungal residue C
+  aliases: []
+- name: C fraction 10 bacterial C
+  aliases: []
+- name: C fraction 11 light fraction C
+  aliases: []
+- name: SOC min Rate
+  aliases: []
+- name: SOC mineralizable OC
+  aliases: []
+- name: EE-GRSP easily extractable glomalin-related soil protein
+  aliases: []
+- name: T-GRSP total glomalin-related soil protein
+  aliases: []
+- name: DE-GRSP difficultly extractable glomalin-related soil protein
+  aliases: []
+- name: 0–45 (ppm) alkyl C (%)
+  aliases: []
+- name: 45–110 (ppm) O-alkyl C (%)
+  aliases: []
+- name: 110–165 (ppm) aromatic C (%)
+  aliases: []
+- name: 165–220 (ppm) carboxyl C (%)
+  aliases: []
+- name: Aliphaticity
+  aliases: []
+- name: Aromaticity
+  aliases: []
+- name: combined index
+  aliases: []
+moderators:
+- Experimental site
+- MAPmean
+- MATmean
+- Soil texture
+- Soil type
+- Elevation
+- Depth cm
+- Years
+- Climate
