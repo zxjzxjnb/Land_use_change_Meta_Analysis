@@ -29,6 +29,14 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument(
         "--cache", default=None, help="Optional dir to cache per-paper JSON."
     )
+    p_run.add_argument(
+        "--taskpack",
+        default=None,
+        help=(
+            "Optional YAML task pack that constrains target variables. "
+            "Defaults to METAEXTRACT_TASKPACK when set."
+        ),
+    )
 
     p_eval = sub.add_parser("eval", help="Score predictions vs. ground truth.")
     p_eval.add_argument("--pred", required=True, help="Predicted CSV.")
@@ -39,14 +47,20 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "run":
+        import os
+
         from .extractor import DEFAULT_MODEL
+        from .locate import TaskSpec
         from .pipeline import run_folder
 
+        taskpack = args.taskpack or os.environ.get("METAEXTRACT_TASKPACK")
+        task_spec = TaskSpec.from_yaml(taskpack) if taskpack else None
         run_folder(
             args.input,
             args.out,
             model=args.model or DEFAULT_MODEL,
             cache_dir=args.cache,
+            task_spec=task_spec,
         )
         return 0
 

@@ -72,6 +72,18 @@ the model to silently transcribe every number, the workflow emphasizes:
 - geometry-assisted table parsing for simple table layouts
 - deterministic sample-size candidate detection for common `n` statements
 - cached paper runs for repeatable offline review
+- **automatic progress saving** so a review can be paused and resumed across
+  sessions (see below)
+
+Records assembled in the cockpit are autosaved per paper, so closing the tab or
+restarting the server does not lose work — reopening the same paper restores the
+records and the bound moderators. Two files are written under `data/reviews/`
+(git-ignored, local-only):
+
+- `{study}.json` — the current draft (records + bound moderators), rewritten on
+  every change and reloaded on open.
+- `{study}.log.csv` — an append-only audit trail (add / accept / delete, each
+  with a UTC timestamp) for review history.
 
 Related files:
 
@@ -82,6 +94,7 @@ src/metaextract/sourcedoc.py    addressable source-document model
 src/metaextract/highlight.py    value-to-bounding-box matching
 src/metaextract/locate.py       AI-assisted screen + locate stage
 src/metaextract/records.py      located-region and extraction-slot models
+src/metaextract/reviewstore.py  durable draft + audit log (resume across sessions)
 src/metaextract/tabular.py      geometry-assisted table pairing
 src/metaextract/sampling.py     deterministic sample-size candidates
 src/metaextract/render.py       PDF page rendering with highlights
@@ -219,6 +232,82 @@ The baseline schema and cockpit export logic are designed around:
 
 The intended downstream output is a reviewed, meta-analysis-ready table rather
 than raw unverified model output.
+
+## Changing target metrics (task packs)
+
+Which metrics the locate-and-review workflow looks for is **not hard-coded** —
+it lives in an editable YAML *task pack* under `data/taskpacks/`. Researchers
+swap target metrics by editing that file alone, no code change:
+
+```yaml
+domain: soil_C_fractions_landuse
+target_variables:
+  - name: soil organic carbon        # canonical name (export column + cross-paper match)
+    aliases: [SOC, TOC, organic carbon]   # synonyms papers use; normalized back to `name`
+    unit_hint: g/kg
+  - name: MBC
+    aliases: [microbial biomass carbon]
+moderators:
+  - mean annual temperature
+  - soil type
+```
+
+Workflow:
+
+- **Bootstrap a pack from an existing Excel:** `python scripts/export_taskpack.py`
+  imports the column vocabulary into `data/taskpacks/soil_C_fractions.yaml` as a
+  starting point to edit.
+- **Add aliases / units, or add/remove metrics:** edit the YAML.
+- **Apply it:** `python scripts/prepare_paper.py P1` loads the default pack;
+  point at another with `METAEXTRACT_TASKPACK=path/to/pack.yaml`.
+- **Apply it to batch extraction guidance:** `metaextract run --taskpack
+  data/taskpacks/soil_C_fractions.yaml --input ... --out ...` passes the same
+  domain, canonical names, aliases, and unit hints into the extraction prompt.
+- Adding or removing a metric requires a fresh `prepare_paper` locate pass for
+  cached cockpit papers; otherwise the cockpit will still show the older cached
+  located regions.
+
+`TaskSpec.from_yaml()` / `to_yaml()` load and save packs programmatically, and a
+bare string is still accepted wherever a metric is expected (so existing
+GT-derived specs keep working).
+
+Note: `--taskpack` constrains the model prompt and cache identity, but the
+auto-extract path (`metaextract run` / `run_folder`) still emits to the fixed,
+soil-specific schema in `schema.py`. So on that path, target-variable names from
+any domain are honored, but task pack **moderators outside the soil schema are
+not captured** — they are omitted from the prompt rather than silently dropped
+(see `SCHEMA_NATIVE_DOMAINS` in `extractor.py`). The locate → cockpit path is
+fully domain-general; generalizing the auto-extract schema is future work.
+
+## Analysis families (which numbers a record holds)
+
+Different meta-analysis designs collect different numbers per data point. A task
+pack picks one with `analysis_family`; the cockpit builds its whole input form
+(the slots, the auto-pairing fast path, the n picker, the export columns) from
+that choice — nothing is hard-coded per design. Families are defined in
+`src/metaextract/families.py`.
+
+```yaml
+domain: my_meta
+analysis_family: continuous_two_arm   # default — omit to get this
+target_variables:
+  - name: soil organic carbon
+    aliases: [SOC, TOC]
+```
+
+| Family | Per-record fields | Effect sizes | Status |
+| --- | --- | --- | --- |
+| `continuous_two_arm` (default) | `mean/sd/n` per arm (`Xc Sc Nc Xe Se Ne`) | lnRR, SMD / Hedges' g | **Validated** on the soil/land-use corpus (P1–P12) |
+| `binary_two_arm` | `events/total` per arm | OR, RR | ⚠️ **Experimental — structurally supported, never tested on real binary-outcome papers** |
+
+> ⚠️ **`binary_two_arm` and any future non-default family are untested.** The
+> form renders and records export, but locate accuracy, the sample-size finder
+> (it only recognizes "replicate/triplicate" wording, which medical/clinical
+> papers don't use), and the validators were only ever measured on continuous
+> soil-ecology papers. **If you try a non-default family on real papers, please
+> open an issue with what worked and what didn't** — that feedback is what turns
+> "structurally supported" into "validated". Omitting `analysis_family` keeps the
+> validated continuous behavior unchanged.
 
 ## Roadmap
 
